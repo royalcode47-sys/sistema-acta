@@ -104,6 +104,14 @@ function initials(name) {
   return name.split(' ').filter((_, i) => i < 2).map(w => w[0]).join('').toUpperCase();
 }
 
+function formatActaDate(date = new Date()) {
+  return new Intl.DateTimeFormat('es-CO', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  }).format(date).replace('.', '');
+}
+
 // Toast Notification System (Polished SVG Icons)
 function showToast(title, desc, type = 'success') {
   const container = document.getElementById('toastContainer');
@@ -302,14 +310,14 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 function generarActa(tipo) {
   if (!selectedEmployee) return;
   
-  const folio = `ACTA-2026-${String(folioCounter++).padStart(4, '0')}`;
-  const fechaActual = "17 May, 2026";
+  const folio = `ACTA-${new Date().getFullYear()}-${String(folioCounter++).padStart(4, '0')}`;
+  const fechaActual = formatActaDate();
 
   // Icons used inside pills dynamically
   let typePillContent = '';
   if (tipo === 'asignacion') {
     typePillContent = `
-      <span class="type-pill cambio" style="background:var(--primary-light); color:var(--primary); border-color:#93c5fd;">
+      <span class="type-pill asignacion">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -317,7 +325,7 @@ function generarActa(tipo) {
       </span>`;
   } else if (tipo === 'cambio') {
     typePillContent = `
-      <span class="type-pill cambio" style="background:#e0f2fe; color:var(--accent); border-color:#bae6fd;">
+      <span class="type-pill cambio">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
           <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
         </svg>Cambio
@@ -337,7 +345,7 @@ function generarActa(tipo) {
   tr.className = 'new-row';
   
   tr.innerHTML = `
-    <td class="folio-code">${folio}</td>
+    <td><span class="folio-code">${folio}</span></td>
     <td>
       <div class="employee-profile-column">
         <div class="employee-cell-avatar">${initials(selectedEmployee.nombre)}</div>
@@ -349,22 +357,29 @@ function generarActa(tipo) {
     </td>
     <td>${typePillContent}</td>
     <td>${fechaActual}</td>
-    <td><span class="status-pill completado"><span class="status-indicator-dot"></span>Completado</span></td>
     <td>
-      <button class="action-btn-link" onclick="downloadPDF('${folio}')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-          <polyline points="14 2 14 8 20 8"></polyline>
-          <line x1="16" y1="13" x2="8" y2="13"></line>
-          <line x1="16" y1="17" x2="8" y2="17"></line>
-          <polyline points="10 9 9 9 8 9"></polyline>
-        </svg>Descargar PDF
+      <span class="status-pill completado"><span class="status-indicator-dot"></span>Completado</span>
+    </td>
+    <td>
+      <button class="action-btn-link" onclick="downloadExcel('${folio}')" title="Exportar a Excel (.xlsx)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px;">
+          <rect x="3" y="3" width="18" height="18" rx="2" fill="#f0f9ff" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M6 8h3v2H6V8zm0 3h3v2H6v-2zm0 3h3v2H6v-2zm5-6h3v2h-3V8zm0 3h3v2h-3v-2zm0 3h3v2h-3v-2zm5-6h3v2h-3V8zm0 3h3v2h-3v-2zm0 3h3v2h-3v-2z" fill="currentColor"/>
+        </svg>
+        <span style="font-weight: 700; font-size: 11px; letter-spacing: 0.3px;">EXCEL</span>
       </button>
     </td>
   `;
   
   // Insert at the top of table body
   tableBody.insertBefore(tr, tableBody.firstChild);
+  // Store folio and estado data attributes on row for later identification (not visible)
+  tr.dataset.folio = folio;
+  tr.dataset.estado = 'Completado';
+
+  // Refresh the visible rows after registering a new acta.
+  filterTable();
+  document.querySelector('.table-container')?.scrollTo({ top: 0, behavior: 'smooth' });
 
   // 2. Increment stats counters visually (with safety checks in case metrics grid is removed)
   const totalActasEl = document.getElementById('statsTotalActas');
@@ -403,29 +418,88 @@ function filterTable() {
   const input = document.getElementById('tableSearch');
   const filter = input.value.toLowerCase();
   const tbody = document.getElementById('tableBody');
-  const tr = tbody.getElementsByTagName('tr');
+  const countText = document.getElementById('tableCountText');
+  const emptyRow = tbody.querySelector('.table-empty-row');
+  const rows = Array.from(tbody.querySelectorAll('tr:not(.table-empty-row)'));
+  let visibleRows = 0;
 
-  for (let i = 0; i < tr.length; i++) {
-    const folioTd = tr[i].getElementsByTagName('td')[0];
-    const nameTd = tr[i].getElementsByTagName('td')[1];
-    
-    if (folioTd && nameTd) {
-      const folioVal = folioTd.textContent || folioTd.innerText;
-      const nameVal = nameTd.textContent || nameTd.innerText;
-      
-      if (folioVal.toLowerCase().indexOf(filter) > -1 || nameVal.toLowerCase().indexOf(filter) > -1) {
-        tr[i].style.display = "";
-      } else {
-        tr[i].style.display = "none";
-      }
+  rows.forEach(row => {
+    const searchableText = [
+      row.dataset.folio,
+      row.dataset.estado,
+      row.textContent
+    ].join(' ').toLowerCase();
+    const isVisible = searchableText.includes(filter);
+
+    row.style.display = isVisible ? '' : 'none';
+    if (isVisible) visibleRows += 1;
+  });
+
+  if (!visibleRows) {
+    if (!emptyRow) {
+      const row = document.createElement('tr');
+      row.className = 'table-empty-row';
+      row.innerHTML = `<td colspan="6">No se encontraron actas con ese filtro.</td>`;
+      tbody.appendChild(row);
+    }
+  } else if (emptyRow) {
+    emptyRow.remove();
+  }
+
+  countText.textContent = `Mostrando ${visibleRows} de ${rows.length} registros`;
+}
+
+// Excel Download Function
+function downloadExcel(folio) {
+  // Get the table data
+  const tableBody = document.getElementById('tableBody');
+  const rows = tableBody.getElementsByTagName('tr');
+
+  // Find the row with matching data-folio attribute
+  let rowData = null;
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].dataset && rows[i].dataset.folio === folio) {
+      rowData = rows[i];
+      break;
     }
   }
+
+  if (!rowData) {
+    showToast("Error", `No se encontró el folio ${folio}`, 'danger');
+    return;
+  }
+
+  // Extract data from the row (visible columns)
+  const cells = rowData.getElementsByTagName('td');
+  const data = {
+    'Folio': rowData.dataset.folio || folio,
+    'Colaborador': cells[1]?.textContent || '',
+    'Tipo de Acta': cells[2]?.textContent || '',
+    'Fecha': cells[3]?.textContent || '',
+    'Estado': rowData.dataset.estado || ''
+  };
+
+  // Create workbook and worksheet
+  const ws = XLSX.utils.json_to_sheet([data]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Acta');
+
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 15 },
+    { wch: 25 },
+    { wch: 20 },
+    { wch: 15 },
+    { wch: 15 }
+  ];
+
+  // Download the file
+  XLSX.writeFile(wb, `Acta_${folio}.xlsx`);
+
+  showToast("Descarga Completada", `Documento Excel para el folio ${folio} descargado exitosamente.`);
 }
 
-// Simulated PDF Download Link
-function downloadPDF(folio) {
-  showToast("Descarga Iniciada", `Preparando descarga del documento PDF para el folio ${folio}...`);
-}
+window.addEventListener('load', filterTable);
 
 // Sidebar navigation highlighters
 function setNav(el) {
