@@ -1,104 +1,12 @@
-// ── BASE DE DATOS SIMULADA DE EMPLEADOS ──
-const empleados = [
-  {
-    id: 'EMP-1029',
-    nombre: 'Carlos Andrés Martínez',
-    doc: '12.345.678',
-    cargo: 'Técnico de Redes y Medida',
-    area: 'Operaciones de Campo',
-    unidad: 'Distribución Atlántico',
-    subunidad: 'Control de Pérdidas',
-    territorio: 'Atlántico',
-    localidad: 'Barranquilla Norte',
-    centro_trabajo: 'Subestación Silencio',
-    piso: 'Piso 2 - Técnico',
-    cedula_jefe: '8.765.432',
-    jefe: 'Ing. Rodrigo Eduardo Pertuz',
-    contrato: 'Indefinido',
-    empresa: 'AIR-E S.A.S. E.S.P.',
-    contacto: '+57 300 456 7890',
-    correo: 'c.martinez@air-e.com'
-  },
-  {
-    id: 'EMP-2084',
-    nombre: 'Laura Sofía Pérez',
-    doc: '98.765.432',
-    cargo: 'Inspectora de Control Pérdidas',
-    area: 'Aseguramiento de Ingresos',
-    unidad: 'Control de Energía',
-    subunidad: 'Pérdidas Comerciales',
-    territorio: 'Atlántico',
-    localidad: 'Soledad Centro',
-    centro_trabajo: 'Sede Soledad Plaza',
-    piso: 'Piso 1 - Operaciones',
-    cedula_jefe: '72.334.455',
-    jefe: 'Dra. María Fernanda López',
-    contrato: 'Obra o Labor',
-    empresa: 'Intervinda Contratistas S.A.S.',
-    contacto: '+57 315 789 1234',
-    correo: 'l.perez@intervinda.co'
-  },
-  {
-    id: 'EMP-3045',
-    nombre: 'Juan Diego Ríos',
-    doc: '55.667.788',
-    cargo: 'Técnico Liniero de Mantenimiento',
-    area: 'Mantenimiento de Redes',
-    unidad: 'Subestaciones y Líneas',
-    subunidad: 'Líneas de Alta Tensión',
-    territorio: 'Magdalena',
-    localidad: 'Santa Marta Centro',
-    centro_trabajo: 'Distrito Santa Marta',
-    piso: 'Piso 1 - Patio Técnico',
-    cedula_jefe: '77.889.900',
-    jefe: 'Ing. Andrés Felipe Torres',
-    contrato: 'Indefinido',
-    empresa: 'AIR-E S.A.S. E.S.P.',
-    contacto: '+57 311 345 6789',
-    correo: 'j.rios@air-e.com'
-  },
-  {
-    id: 'EMP-4012',
-    nombre: 'María Fernanda López',
-    doc: '22.334.455',
-    cargo: 'Supervisora de Operaciones',
-    area: 'Distribución y Redes',
-    unidad: 'Operaciones Municipales',
-    subunidad: 'Medida Directa',
-    territorio: 'Atlántico',
-    localidad: 'Malambo',
-    centro_trabajo: 'Subestación Malambo',
-    piso: 'Piso 2 - Control',
-    cedula_jefe: '15.992.345',
-    jefe: 'Ing. Mario Alberto Cantillo',
-    contrato: 'Indefinido',
-    empresa: 'AIR-E S.A.S. E.S.P.',
-    contacto: '+57 318 456 1122',
-    correo: 'm.lopez@air-e.com'
-  },
-  {
-    id: 'EMP-5091',
-    nombre: 'Andrés Felipe Torres',
-    doc: '77.889.900',
-    cargo: 'Técnico de Subestaciones',
-    area: 'Transmisión Regional',
-    unidad: 'Subestaciones y Transformadores',
-    subunidad: 'Mantenimiento Preventivo',
-    territorio: 'Bolívar',
-    localidad: 'Cartagena Sur',
-    centro_trabajo: 'Subestación Ternera',
-    piso: 'Piso 1 - Sala Celdas',
-    cedula_jefe: '33.445.566',
-    jefe: 'Ing. Daniel Alberto Briceño',
-    contrato: 'Prestación de Servicios',
-    empresa: 'Ingeniería y Servicios Intervinda',
-    contacto: '+57 320 987 6543',
-    correo: 'a.torres@intervinda.co'
-  }
-];
+// ── BASE DE DATOS REAL (cargada desde empleados.js) ──
+// Los datos reales están en js/empleados.js — 1.460 colaboradores AIR-E
 
 let selectedEmployee = null;
-let folioCounter = 13; // Siguiente folio correlativo
+let folioCounter = 1; // Siguiente folio correlativo
+let pendingOperationType = null;
+let selectedEquipmentType = null;
+let selectedPeripheralsOption = null;
+let selectedPeripheralItems = [];
 
 function initials(name) {
   return name.split(' ').filter((_, i) => i < 2).map(w => w[0]).join('').toUpperCase();
@@ -145,35 +53,44 @@ function showToast(title, desc, type = 'success') {
   }, 4500);
 }
 
-// Search function
+// Search function — optimizada para 1.460 registros reales
+let _searchTimeout = null;
 function handleSearch(query) {
+  clearTimeout(_searchTimeout);
   const box = document.getElementById('searchResults');
   if (!query || query.length < 2) { box.classList.remove('visible'); return; }
 
-  const q = query.toLowerCase();
-  const hits = empleados.filter(e =>
-    e.nombre.toLowerCase().includes(q) ||
-    e.cargo.toLowerCase().includes(q) ||
-    e.doc.replace(/\./g,'').includes(q.replace(/\./g,'')) ||
-    e.id.toLowerCase().includes(q)
-  );
+  _searchTimeout = setTimeout(() => {
+    const q = query.toLowerCase().trim();
+    const hits = [];
+    for (let i = 0; i < empleados.length && hits.length < 8; i++) {
+      const e = empleados[i];
+      if (
+        e.nombre.toLowerCase().includes(q) ||
+        e.cargo.toLowerCase().includes(q) ||
+        e.id.includes(q) ||
+        (e.cod_epl && e.cod_epl.includes(q)) ||
+        e.correo.toLowerCase().includes(q)
+      ) hits.push(e);
+    }
 
-  if (!hits.length) {
-    box.innerHTML = `<div class="search-result-item" style="color:var(--text-muted);font-size:12px;justify-content:center;">Sin resultados para "${query}"</div>`;
-    box.classList.add('visible');
-    return;
-  }
+    if (!hits.length) {
+      box.innerHTML = `<div class="search-result-item" style="color:var(--text-muted);font-size:12px;justify-content:center;">Sin resultados para "${query}"</div>`;
+      box.classList.add('visible');
+      return;
+    }
 
-  box.innerHTML = hits.map(e => `
-    <div class="search-result-item" onclick="selectEmployee('${e.id}')">
-      <div class="avatar-circle">${initials(e.nombre)}</div>
-      <div class="result-details">
-        <div class="result-title">${e.nombre}</div>
-        <div class="result-subtitle">${e.id} · CC ${e.doc} · ${e.cargo}</div>
+    box.innerHTML = hits.map(e => `
+      <div class="search-result-item" onclick="selectEmployee('${e.id}')">
+        <div class="avatar-circle">${initials(e.nombre)}</div>
+        <div class="result-details">
+          <div class="result-title">${e.nombre}</div>
+          <div class="result-subtitle">CC ${e.id} · ${e.cargo.length > 38 ? e.cargo.slice(0,38)+'…' : e.cargo}</div>
+        </div>
       </div>
-    </div>
-  `).join('');
-  box.classList.add('visible');
+    `).join('');
+    box.classList.add('visible');
+  }, 220);
 }
 
 // Selecting Employee
@@ -265,8 +182,454 @@ document.addEventListener('click', e => {
 // Modals handlers
 function openModal(tipo) {
   if (!selectedEmployee) return;
+  pendingOperationType = tipo;
+  resetEquipmentTypeSelection();
+
+  const subtitle = document.getElementById('tipoEquipoSubtitle');
+  if (subtitle) {
+    subtitle.textContent = `Seleccione el tipo antes de continuar con ${getOperationLabel(tipo).toLowerCase()}`;
+  }
+
+  document.getElementById('modalTipoEquipo').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function getOperationLabel(tipo) {
+  if (tipo === 'asignacion') return 'Asignación de Equipo';
+  if (tipo === 'cambio') return 'Cambio de Equipo';
+  return 'Devolución de Equipo';
+}
+
+function selectEquipmentType(button) {
+  selectedEquipmentType = button.dataset.equipmentType;
+  document.querySelectorAll('.equipment-type-option').forEach(option => {
+    option.classList.toggle('active', option === button);
+  });
+
+  const peripheralsQuestion = document.getElementById('peripheralsQuestion');
+  const continueBtn = document.getElementById('continueEquipmentTypeBtn');
+
+  if (selectedEquipmentType === 'Torres') {
+    selectedPeripheralsOption = null;
+    selectedPeripheralItems = [];
+    document.querySelectorAll('.peripherals-option').forEach(option => option.classList.remove('active'));
+    if (peripheralsQuestion) peripheralsQuestion.classList.add('visible');
+    hidePeripheralPicker();
+    if (continueBtn) continueBtn.disabled = true;
+    return;
+  }
+
+  selectedPeripheralsOption = null;
+  selectedPeripheralItems = [];
+  if (peripheralsQuestion) peripheralsQuestion.classList.remove('visible');
+  document.querySelectorAll('.peripherals-option').forEach(option => option.classList.remove('active'));
+  hidePeripheralPicker();
+  if (continueBtn) continueBtn.disabled = false;
+}
+
+function selectPeripherals(value, button) {
+  selectedPeripheralsOption = value;
+  document.querySelectorAll('.peripherals-option').forEach(option => {
+    option.classList.toggle('active', option === button);
+  });
+
+  if (value) {
+    showPeripheralPicker();
+  } else {
+    selectedPeripheralItems = [];
+    hidePeripheralPicker();
+  }
+
+  updateContinueEquipmentButton();
+}
+
+function showPeripheralPicker() {
+  const picker = document.getElementById('peripheralsPicker');
+  if (picker) picker.classList.add('visible');
+}
+
+function hidePeripheralPicker() {
+  const picker = document.getElementById('peripheralsPicker');
+  const list = document.getElementById('peripheralsList');
+  if (picker) picker.classList.remove('visible');
+  if (list) list.innerHTML = '';
+}
+
+function addPeripheralSelector(value = '') {
+  const list = document.getElementById('peripheralsList');
+  if (!list) return;
+
+  const row = document.createElement('div');
+  row.className = 'peripheral-row';
+  row.innerHTML = `
+    <select class="peripheral-select" onchange="updateSelectedPeripheralItems()">
+      <option value="">Seleccionar periférico…</option>
+      <option value="Mouse" ${value === 'Mouse' ? 'selected' : ''}>Mouse</option>
+      <option value="Teclado" ${value === 'Teclado' ? 'selected' : ''}>Teclado</option>
+    </select>
+    <button class="remove-peripheral-btn" type="button" onclick="removePeripheralSelector(this)" title="Quitar periférico">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  `;
+  list.appendChild(row);
+  updateSelectedPeripheralItems();
+}
+
+function removePeripheralSelector(button) {
+  button.closest('.peripheral-row')?.remove();
+  updateSelectedPeripheralItems();
+}
+
+function updateSelectedPeripheralItems() {
+  selectedPeripheralItems = Array.from(document.querySelectorAll('.peripheral-select'))
+    .map(select => select.value)
+    .filter(Boolean);
+  updateContinueEquipmentButton();
+}
+
+function updateContinueEquipmentButton() {
+  const continueBtn = document.getElementById('continueEquipmentTypeBtn');
+  if (!continueBtn) return;
+
+  const needsPeripherals = selectedEquipmentType === 'Torres' && selectedPeripheralsOption === true;
+  continueBtn.disabled = !selectedEquipmentType ||
+    (selectedEquipmentType === 'Torres' && selectedPeripheralsOption === null) ||
+    (needsPeripherals && selectedPeripheralItems.length === 0);
+}
+
+function confirmEquipmentType() {
+  if (!pendingOperationType || !selectedEquipmentType) {
+    showToast("Tipo de equipo requerido", "Seleccione un tipo de equipo para continuar.", "danger");
+    return;
+  }
+
+  if (selectedEquipmentType === 'Torres' && selectedPeripheralsOption === null) {
+    showToast("Periféricos requeridos", "Indique si la torre incluye periféricos.", "danger");
+    return;
+  }
+
+  if (selectedEquipmentType === 'Torres' && selectedPeripheralsOption && !selectedPeripheralItems.length) {
+    showToast("Agregue periféricos", "Use el botón + para agregar al menos un periférico.", "danger");
+    return;
+  }
+
+  document.getElementById('modalTipoEquipo').classList.remove('open');
+  openOperationModal(pendingOperationType);
+}
+
+function getOperationModalId(tipo) {
+  if (tipo === 'asignacion') return 'modalAsignacion';
+  if (tipo === 'cambio') return 'modalCambio';
+  return 'modalDevolucion';
+}
+
+function getOperationSuffix(tipo) {
+  if (tipo === 'asignacion') return 'Asignacion';
+  if (tipo === 'cambio') return 'Cambio';
+  return 'Devolucion';
+}
+
+function resetEquipmentTypeSelection(clearOperation = false) {
+  selectedEquipmentType = null;
+  selectedPeripheralsOption = null;
+  selectedPeripheralItems = [];
+  document.querySelectorAll('.equipment-type-option').forEach(option => option.classList.remove('active'));
+  document.querySelectorAll('.peripherals-option').forEach(option => option.classList.remove('active'));
+  hidePeripheralPicker();
+
+  const peripheralsQuestion = document.getElementById('peripheralsQuestion');
+  if (peripheralsQuestion) peripheralsQuestion.classList.remove('visible');
+
+  const continueBtn = document.getElementById('continueEquipmentTypeBtn');
+  if (continueBtn) continueBtn.disabled = true;
+
+  if (clearOperation) pendingOperationType = null;
+}
+
+function clearTechnicalAddons() {
+  ['technicalAddonsAsignacion', 'technicalAddonsCambio', 'technicalAddonsDevolucion'].forEach(id => {
+    const container = document.getElementById(id);
+    if (container) container.innerHTML = '';
+  });
+}
+
+function syncEquipmentTypeDisplays() {
+  const displayValue = selectedEquipmentType || 'Sin seleccionar';
+  const peripheralsValue = selectedEquipmentType === 'Torres'
+    ? `Periféricos: ${selectedPeripheralsOption ? selectedPeripheralItems.join(', ') : 'No'}`
+    : '';
+
+  ['tipoEquipoAsignacion', 'tipoEquipoCambio', 'tipoEquipoDevolucion'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = displayValue;
+  });
+
+  ['perifericosAsignacion', 'perifericosCambio', 'perifericosDevolucion'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = peripheralsValue;
+    el.style.display = peripheralsValue ? 'inline-flex' : 'none';
+  });
+}
+
+function renderTechnicalAddons(tipo) {
+  clearTechnicalAddons();
+
+  const suffix = getOperationSuffix(tipo);
+  const container = document.getElementById(`technicalAddons${suffix}`);
+  if (!container) return;
+
+  const sections = [];
+
+  if (selectedEquipmentType === 'Portátiles') {
+    sections.push(`
+      <div class="equip-section-title" style="margin-top:16px">Cargador</div>
+      <div class="equipment-card addon-card" data-addon-group="charger">
+        <div class="equipment-card-header">
+          <span class="equip-label">Datos del Cargador</span>
+        </div>
+        <div class="equip-grid">
+          <div class="equip-field">
+            <label>Serial</label>
+            <input type="text" data-addon-field="chargerSerial" placeholder="Ej. CHG-20249876">
+          </div>
+          <div class="equip-field">
+            <label>Marca</label>
+            <input type="text" data-addon-field="chargerMarca" placeholder="Ej. Lenovo">
+          </div>
+        </div>
+      </div>
+    `);
+  }
+
+  if (selectedEquipmentType === 'Torres' && selectedPeripheralsOption) {
+    selectedPeripheralItems.forEach((item, index) => {
+      const isKeyboard = item === 'Teclado';
+      sections.push(`
+        <div class="equip-section-title" style="margin-top:16px">${item} ${index + 1}</div>
+        <div class="equipment-card addon-card" data-addon-group="peripheral" data-peripheral-type="${item}">
+          <div class="equipment-card-header">
+            <span class="equip-label peripheral-detail-label">${item}</span>
+          </div>
+          <div class="equip-grid">
+            ${isKeyboard ? `
+              <div class="equip-field">
+                <label>Placa</label>
+                <input type="text" data-addon-field="placa" placeholder="Ej. TEC-504987">
+              </div>
+            ` : ''}
+            <div class="equip-field">
+              <label>Serial</label>
+              <input type="text" data-addon-field="serial" placeholder="Ej. SN-${item.toUpperCase()}-001">
+            </div>
+            <div class="equip-field">
+              <label>Modelo</label>
+              <input type="text" data-addon-field="modelo" placeholder="Ej. MK120">
+            </div>
+            <div class="equip-field">
+              <label>Marca</label>
+              <input type="text" data-addon-field="marca" placeholder="Ej. Logitech">
+            </div>
+          </div>
+        </div>
+      `);
+    });
+  }
+
+  container.innerHTML = sections.join('');
+}
+
+function collectTechnicalAddonData(modalId) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return '';
+
+  const charger = modal.querySelector('[data-addon-group="charger"]');
+  const details = [];
+
+  if (charger) {
+    const serial = charger.querySelector('[data-addon-field="chargerSerial"]')?.value.trim();
+    const marca = charger.querySelector('[data-addon-field="chargerMarca"]')?.value.trim();
+    const chargerParts = [];
+    if (serial) chargerParts.push(`Serial ${serial}`);
+    if (marca) chargerParts.push(`Marca ${marca}`);
+    if (chargerParts.length) details.push(`Cargador: ${chargerParts.join(', ')}`);
+  }
+
+  modal.querySelectorAll('[data-addon-group="peripheral"]').forEach((card, index) => {
+    const type = card.dataset.peripheralType || `Periférico ${index + 1}`;
+    const fieldOrder = type === 'Teclado'
+      ? ['placa', 'serial', 'modelo', 'marca']
+      : ['serial', 'modelo', 'marca'];
+    const fields = fieldOrder
+      .map(field => {
+        const value = card.querySelector(`[data-addon-field="${field}"]`)?.value.trim();
+        return value ? `${field.charAt(0).toUpperCase() + field.slice(1)} ${value}` : '';
+      })
+      .filter(Boolean);
+
+    if (fields.length) details.push(`${type}: ${fields.join(', ')}`);
+  });
+
+  return details.join(' | ');
+}
+
+function getTypePillContent(tipo) {
+  if (tipo === 'asignacion') {
+    return `
+      <span class="type-pill asignacion">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>Asignación
+      </span>`;
+  }
+
+  if (tipo === 'cambio') {
+    return `
+      <span class="type-pill cambio">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+        </svg>Cambio
+      </span>`;
+  }
+
+  return `
+    <span class="type-pill devolucion">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
+        <path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6m-6-6 6-6"/>
+      </svg>Devolución
+    </span>`;
+}
+
+function getStatusPillContent(estado) {
+  return `<span class="status-pill ${estado.toLowerCase()}"><span class="status-indicator-dot"></span>${estado}</span>`;
+}
+
+function getRecordActionsContent(folio) {
+  return `
+    <div class="record-actions">
+      <button class="record-action-btn edit" onclick="openEditRecord('${folio}')" title="Editar registro">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"></path>
+          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
+        </svg>
+      </button>
+      <button class="record-action-btn delete" onclick="deleteRecord('${folio}')" title="Eliminar registro">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 6h18"></path>
+          <path d="M8 6V4h8v2"></path>
+          <path d="M19 6l-1 14H6L5 6"></path>
+        </svg>
+      </button>
+    </div>`;
+}
+
+function findRecordRow(folio) {
+  return Array.from(document.querySelectorAll('#tableBody tr:not(.table-empty-row)'))
+    .find(row => row.dataset.folio === folio);
+}
+
+function renderRecordRow(row) {
+  const folio = row.dataset.folio;
+  const nombre = row.dataset.nombre || '';
+  const cargo = row.dataset.cargo || '';
+  const tipo = row.dataset.tipo || 'asignacion';
+  const fecha = row.dataset.fecha || '';
+  const estado = row.dataset.estado || 'Pendiente';
+  const equipmentType = row.dataset.equipo || '';
+  const peripherals = row.dataset.perifericos || '';
+  const technicalDetails = row.dataset.detallesTecnicos || '';
+  const equipmentLine = equipmentType
+    ? `<div class="employee-cell-equipment">Tipo: ${equipmentType}${peripherals ? ` · Periféricos: ${peripherals}` : ''}</div>`
+    : '';
+  const detailsLine = technicalDetails
+    ? `<div class="employee-cell-equipment">Detalle: ${technicalDetails}</div>`
+    : '';
+
+  row.innerHTML = `
+    <td>
+      <div class="employee-profile-column">
+        <div class="employee-cell-avatar">${initials(nombre)}</div>
+        <div>
+          <div class="employee-cell-name">${nombre}</div>
+          <div class="employee-cell-cargo">${cargo}</div>
+          ${equipmentLine}
+          ${detailsLine}
+        </div>
+      </div>
+    </td>
+    <td>${getTypePillContent(tipo)}</td>
+    <td>${fecha}</td>
+    <td>${getStatusPillContent(estado)}</td>
+    <td>
+      <button class="action-btn-link" onclick="downloadExcel('${folio}')" title="Exportar a Excel (.xlsx)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px;">
+          <rect x="3" y="3" width="18" height="18" rx="2" fill="#f0f9ff" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M6 8h3v2H6V8zm0 3h3v2H6v-2zm0 3h3v2H6v-2zm5-6h3v2h-3V8zm0 3h3v2h-3v-2zm0 3h3v2h-3v-2zm5-6h3v2h-3V8zm0 3h3v2h-3v-2zm0 3h3v2h-3v-2z" fill="currentColor"/>
+        </svg>
+        <span style="font-weight: 700; font-size: 11px; letter-spacing: 0.3px;">EXCEL</span>
+      </button>
+    </td>
+    <td>${getRecordActionsContent(folio)}</td>
+  `;
+}
+
+function openEditRecord(folio) {
+  const row = findRecordRow(folio);
+  if (!row) {
+    showToast("Error", `No se encontró el folio ${folio}`, 'danger');
+    return;
+  }
+
+  document.getElementById('editRecordTargetFolio').value = folio;
+  document.getElementById('editRecordFolio').textContent = folio;
+  document.getElementById('editRecordName').value = row.dataset.nombre || '';
+  document.getElementById('editRecordCargo').value = row.dataset.cargo || '';
+  document.getElementById('editRecordType').value = row.dataset.tipo || 'asignacion';
+  document.getElementById('editRecordDate').value = row.dataset.fecha || '';
+  document.getElementById('editRecordStatus').value = row.dataset.estado || 'Pendiente';
+  document.getElementById('modalEditarRegistro').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function saveEditedRecord() {
+  const folio = document.getElementById('editRecordTargetFolio').value;
+  const row = findRecordRow(folio);
+  if (!row) return;
+
+  row.dataset.nombre = document.getElementById('editRecordName').value.trim() || 'Sin nombre';
+  row.dataset.cargo = document.getElementById('editRecordCargo').value.trim() || 'Sin cargo';
+  row.dataset.tipo = document.getElementById('editRecordType').value;
+  row.dataset.fecha = document.getElementById('editRecordDate').value.trim() || formatActaDate();
+  row.dataset.estado = document.getElementById('editRecordStatus').value;
+  renderRecordRow(row);
+  closeModal('modalEditarRegistro');
+  saveRecordsToLocalStorage();
+  filterTable();
+  showToast("Registro Actualizado", `El registro de ${row.dataset.nombre} fue actualizado.`);
+}
+
+function deleteRecord(folio) {
+  const row = findRecordRow(folio);
+  if (!row) return;
+
+  const nombre = row.dataset.nombre || 'este registro';
+  if (!confirm(`¿Eliminar el registro de ${nombre}?`)) return;
+
+  row.remove();
+  saveRecordsToLocalStorage();
+  filterTable();
+  showToast("Registro Eliminado", `El registro de ${nombre} fue eliminado.`);
+}
+
+function openOperationModal(tipo) {
   const ini = initials(selectedEmployee.nombre);
-  const details = `${selectedEmployee.id} · Cédula ${selectedEmployee.doc} · ${selectedEmployee.cargo}`;
+  const details = `CC ${selectedEmployee.id} · Cód. ${selectedEmployee.cod_epl || ''} · ${selectedEmployee.cargo}`;
+  syncEquipmentTypeDisplays();
+  renderTechnicalAddons(tipo);
 
   if (tipo === 'asignacion') {
     document.getElementById('bannerAvatarAsignacion').textContent = ini;
@@ -289,8 +652,19 @@ function openModal(tipo) {
 
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
-  document.body.style.overflow = '';
   resetFormInputs(id);
+
+  if (id === 'modalTipoEquipo') {
+    resetEquipmentTypeSelection(true);
+  } else if (['modalAsignacion', 'modalCambio', 'modalDevolucion'].includes(id)) {
+    clearTechnicalAddons();
+    resetEquipmentTypeSelection(true);
+    syncEquipmentTypeDisplays();
+  }
+
+  if (!document.querySelector('.modal-overlay.open')) {
+    document.body.style.overflow = '';
+  }
 }
 
 function resetFormInputs(id) {
@@ -306,111 +680,199 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
   });
 });
 
-// Generate dynamic Actas and update logs/counters (With Inline SVG Badges instead of Emojis)
-function generarActa(tipo) {
+// ── CONFIGURACIÓN DEL SERVIDOR ──────────────────────────────────────────────
+// Si la app corre servida por Flask (Render o local HTTP) usa rutas relativas.
+// Si se abre como archivo local (file://) apunta a localhost:5000.
+const SERVER_URL = window.location.protocol === 'file:' ? 'http://localhost:5000' : '';
+
+// ── QUIÉN ENTREGA (datos del responsable de TI que firma) ────────────────────
+// Ajusta estos datos con los de la persona que gestiona las actas
+const RESPONSABLE_TI = {
+  nombre:  'DANIEL JOSE BRICEÑO ARIZA',
+  cedula:  '1.044.215.586',
+  cargo:   'APRENDIZ',
+  empresa: 'AIR-E'
+};
+
+// ── RECOLECTAR EQUIPOS DEL MODAL ─────────────────────────────────────────────
+function recolectarEquipos(tipo) {
+  const equipos = [];
+
+  if (tipo === 'asignacion') {
+    const placa  = document.getElementById('placaAsignacion')?.value.trim();
+    const serial = document.getElementById('serialAsignacion')?.value.trim();
+    const marca  = document.getElementById('marcaAsignacion')?.value.trim();
+    const modelo = document.getElementById('modeloAsignacion')?.value.trim();
+    const obs    = document.getElementById('obsAsignacion')?.value.trim();
+    if (placa || serial)
+      equipos.push({ tipo_activo: selectedEquipmentType || '', placa, serial, modelo, marca, observacion: obs || 'ASIGNACION' });
+
+    // Periféricos (cargador, mouse, teclado)
+    const modal = document.getElementById('modalAsignacion');
+    modal?.querySelectorAll('[data-addon-group]').forEach(card => {
+      const periType = card.dataset.peripheralType || card.dataset.addonGroup || '';
+      const plc  = card.querySelector('[data-addon-field="placa"]')?.value.trim() || '';
+      const ser  = card.querySelector('[data-addon-field="chargerSerial"], [data-addon-field="serial"]')?.value.trim() || '';
+      const mar  = card.querySelector('[data-addon-field="chargerMarca"], [data-addon-field="marca"]')?.value.trim() || '';
+      const mod  = card.querySelector('[data-addon-field="modelo"]')?.value.trim() || '';
+      if (ser || mar)
+        equipos.push({ tipo_activo: periType, placa: plc, serial: ser, modelo: mod, marca: mar, observacion: 'ASIGNACION' });
+    });
+
+  } else if (tipo === 'cambio') {
+    // Equipo entrante
+    equipos.push({
+      tipo_activo: selectedEquipmentType || '',
+      placa:  document.getElementById('placaEntrante')?.value.trim() || '',
+      serial: document.getElementById('serialEntrante')?.value.trim() || '',
+      marca:  document.getElementById('marcaEntrante')?.value.trim() || '',
+      modelo: document.getElementById('modeloEntrante')?.value.trim() || '',
+      observacion: 'ASIGNACION'
+    });
+    // Equipo saliente
+    equipos.push({
+      tipo_activo: selectedEquipmentType || '',
+      placa:  document.getElementById('placaSaliente')?.value.trim() || '',
+      serial: document.getElementById('serialSaliente')?.value.trim() || '',
+      marca:  document.getElementById('marcaSaliente')?.value.trim() || '',
+      modelo: document.getElementById('modeloSaliente')?.value.trim() || '',
+      observacion: 'DEVOLUCION'
+    });
+
+  } else { // devolucion
+    equipos.push({
+      tipo_activo: selectedEquipmentType || '',
+      placa:  document.getElementById('placaDevolucion')?.value.trim() || '',
+      serial: document.getElementById('serialDevolucion')?.value.trim() || '',
+      marca:  document.getElementById('marcaDevolucion')?.value.trim() || '',
+      modelo: document.getElementById('modeloDevolucion')?.value.trim() || '',
+      observacion: document.getElementById('causaDevolucion')?.value.trim() || 'DEVOLUCION'
+    });
+  }
+
+  return equipos.filter(e => e.placa || e.serial);
+}
+
+// ── SPECS DE COMPUTADOR (solo si aplica) ─────────────────────────────────────
+function recolectarSpecs(modalId) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return null;
+  const nombrePC = modal.querySelector('[data-addon-field="nombrePC"]')?.value.trim();
+  if (!nombrePC) return null;
+  return {
+    nombre_pc:  nombrePC,
+    procesador: modal.querySelector('[data-addon-field="procesador"]')?.value.trim() || '',
+    ram:        modal.querySelector('[data-addon-field="ram"]')?.value.trim() || '',
+    disco:      modal.querySelector('[data-addon-field="disco"]')?.value.trim() || '',
+    opticos:    modal.querySelector('[data-addon-field="opticos"]')?.value.trim() || '',
+    monitor:    modal.querySelector('[data-addon-field="monitor"]')?.value.trim() || ''
+  };
+}
+
+// ── GENERAR ACTA → LLAMA AL SERVIDOR PYTHON ──────────────────────────────────
+async function generarActa(tipo) {
   if (!selectedEmployee) return;
-  
-  const folio = `ACTA-${new Date().getFullYear()}-${String(folioCounter++).padStart(4, '0')}`;
-  const fechaActual = formatActaDate();
-
-  // Icons used inside pills dynamically
-  let typePillContent = '';
-  if (tipo === 'asignacion') {
-    typePillContent = `
-      <span class="type-pill asignacion">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>Asignación
-      </span>`;
-  } else if (tipo === 'cambio') {
-    typePillContent = `
-      <span class="type-pill cambio">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
-          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-        </svg>Cambio
-      </span>`;
-  } else {
-    typePillContent = `
-      <span class="type-pill devolucion">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
-          <path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6m-6-6 6-6"/>
-        </svg>Devolución
-      </span>`;
-  }
-  
-  // 1. Add row to table dynamically
-  const tableBody = document.getElementById('tableBody');
-  const tr = document.createElement('tr');
-  tr.className = 'new-row';
-  
-  tr.innerHTML = `
-    <td><span class="folio-code">${folio}</span></td>
-    <td>
-      <div class="employee-profile-column">
-        <div class="employee-cell-avatar">${initials(selectedEmployee.nombre)}</div>
-        <div>
-          <div class="employee-cell-name">${selectedEmployee.nombre}</div>
-          <div class="employee-cell-cargo">${selectedEmployee.cargo}</div>
-        </div>
-      </div>
-    </td>
-    <td>${typePillContent}</td>
-    <td>${fechaActual}</td>
-    <td>
-      <span class="status-pill completado"><span class="status-indicator-dot"></span>Completado</span>
-    </td>
-    <td>
-      <button class="action-btn-link" onclick="downloadExcel('${folio}')" title="Exportar a Excel (.xlsx)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px;">
-          <rect x="3" y="3" width="18" height="18" rx="2" fill="#f0f9ff" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M6 8h3v2H6V8zm0 3h3v2H6v-2zm0 3h3v2H6v-2zm5-6h3v2h-3V8zm0 3h3v2h-3v-2zm0 3h3v2h-3v-2zm5-6h3v2h-3V8zm0 3h3v2h-3v-2zm0 3h3v2h-3v-2z" fill="currentColor"/>
-        </svg>
-        <span style="font-weight: 700; font-size: 11px; letter-spacing: 0.3px;">EXCEL</span>
-      </button>
-    </td>
-  `;
-  
-  // Insert at the top of table body
-  tableBody.insertBefore(tr, tableBody.firstChild);
-  // Store folio and estado data attributes on row for later identification (not visible)
-  tr.dataset.folio = folio;
-  tr.dataset.estado = 'Completado';
-
-  // Refresh the visible rows after registering a new acta.
-  filterTable();
-  document.querySelector('.table-container')?.scrollTo({ top: 0, behavior: 'smooth' });
-
-  // 2. Increment stats counters visually (with safety checks in case metrics grid is removed)
-  const totalActasEl = document.getElementById('statsTotalActas');
-  if (totalActasEl) totalActasEl.textContent = parseInt(totalActasEl.textContent) + 1;
-  
-  if (tipo === 'asignacion') {
-    const cambiosEl = document.getElementById('statsCambios');
-    if (cambiosEl) cambiosEl.textContent = parseInt(cambiosEl.textContent) + 1;
-  } else if (tipo === 'cambio') {
-    const cambiosEl = document.getElementById('statsCambios');
-    if (cambiosEl) cambiosEl.textContent = parseInt(cambiosEl.textContent) + 1;
-  } else {
-    const devEl = document.getElementById('statsDevoluciones');
-    if (devEl) devEl.textContent = parseInt(devEl.textContent) + 1;
+  if (!selectedEquipmentType) {
+    showToast('Tipo de equipo requerido', 'Seleccione el tipo de equipo antes de generar el acta.', 'danger');
+    return;
   }
 
-  // 3. Show Toast Notification
-  let toastTitle = '';
-  if (tipo === 'asignacion') {
-    toastTitle = "Asignación de Equipo Registrada";
-  } else if (tipo === 'cambio') {
-    toastTitle = "Cambio de Equipo Registrado";
-  } else {
-    toastTitle = "Devolución Procesada";
+  const equipos = recolectarEquipos(tipo);
+  if (!equipos.length) {
+    showToast('Sin equipos', 'Completa al menos placa o serial del equipo.', 'danger');
+    return;
   }
 
-  showToast(toastTitle, `Folio ${folio} registrado con éxito para ${selectedEmployee.nombre}.`);
+  const modalId = getOperationModalId(tipo);
+  const specs   = recolectarSpecs(modalId);
 
-  // 4. Close modal & clear employee selection
-  closeModal(tipo === 'asignacion' ? 'modalAsignacion' : (tipo === 'cambio' ? 'modalCambio' : 'modalDevolucion'));
-  clearEmployee();
+  const payload = {
+    tipo,
+    ticket:          document.getElementById('ticketInput')?.value.trim() || '',
+    // Responsable TI (quien entrega)
+    nombre_entrega:  RESPONSABLE_TI.nombre,
+    cedula_entrega:  RESPONSABLE_TI.cedula,
+    cargo_entrega:   RESPONSABLE_TI.cargo,
+    empresa_entrega: RESPONSABLE_TI.empresa,
+    // Empleado seleccionado (quien recibe)
+    nombre_recibe:   selectedEmployee.nombre,
+    cedula_recibe:   selectedEmployee.id,
+    cargo_recibe:    selectedEmployee.cargo,
+    empresa_recibe:  selectedEmployee.empresa || 'AIR-E',
+    // Ubicación del empleado
+    ciudad:          selectedEmployee.localidad || 'BARRANQUILLA',
+    sede:            selectedEmployee.centro_trabajo || '',
+    piso:            selectedEmployee.piso || '',
+    // Equipos
+    equipos,
+    ...(specs && { specs })
+  };
+
+  // Botón en estado de carga
+  const btn = document.querySelector(`#${modalId} .btn-primary, #${modalId} .btn-success`);
+  const btnOriginal = btn?.innerHTML;
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Generando...';
+  }
+
+  try {
+    const response = await fetch(`${SERVER_URL}/generar-acta`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: 'Error del servidor' }));
+      throw new Error(err.error || `HTTP ${response.status}`);
+    }
+
+    // Descargar el archivo
+    const blob = await response.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    a.download = match ? match[1] : `Acta_${tipo}_${Date.now()}.xlsx`;
+    a.href = url;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    // Registrar en la tabla
+    const folio = `ACTA-${new Date().getFullYear()}-${String(folioCounter++).padStart(4, '0')}`;
+    const tableBody = document.getElementById('tableBody');
+    const tr = document.createElement('tr');
+    tr.className = 'new-row';
+    tr.dataset.folio  = folio;
+    tr.dataset.nombre = selectedEmployee.nombre;
+    tr.dataset.cargo  = selectedEmployee.cargo;
+    tr.dataset.tipo   = tipo;
+    tr.dataset.fecha  = formatActaDate();
+    tr.dataset.estado = 'Pendiente';
+    tr.dataset.equipo = selectedEquipmentType;
+    tr.dataset.perifericos = selectedPeripheralsOption ? selectedPeripheralItems.join(', ') : '';
+    tr.dataset.detallesTecnicos = collectTechnicalAddonData(modalId);
+    renderRecordRow(tr);
+    tableBody.insertBefore(tr, tableBody.firstChild);
+    saveRecordsToLocalStorage();
+    filterTable();
+    document.querySelector('.table-container')?.scrollTo({ top: 0, behavior: 'smooth' });
+
+    const labels = { asignacion: 'Asignación Registrada', cambio: 'Cambio Registrado', devolucion: 'Devolución Procesada' };
+    showToast(labels[tipo] || 'Acta Generada', `Folio ${folio} descargado para ${selectedEmployee.nombre}.`);
+
+    closeModal(modalId);
+    clearEmployee();
+
+  } catch (err) {
+    showToast('Error al generar', `No se pudo conectar al servidor: ${err.message}`, 'danger');
+  } finally {
+    if (btn && btnOriginal) {
+      btn.disabled = false;
+      btn.innerHTML = btnOriginal;
+    }
+  }
 }
 
 // Filter History Table
@@ -425,9 +887,8 @@ function filterTable() {
 
   rows.forEach(row => {
     const searchableText = [
-      row.dataset.folio,
-      row.dataset.estado,
-      row.textContent
+      row.dataset.nombre,
+      row.dataset.fecha
     ].join(' ').toLowerCase();
     const isVisible = searchableText.includes(filter);
 
@@ -436,11 +897,15 @@ function filterTable() {
   });
 
   if (!visibleRows) {
+    const msg = rows.length === 0 ? 'No hay actas registradas.' : 'No se encontraron actas con ese filtro.';
     if (!emptyRow) {
       const row = document.createElement('tr');
       row.className = 'table-empty-row';
-      row.innerHTML = `<td colspan="6">No se encontraron actas con ese filtro.</td>`;
+      row.innerHTML = `<td colspan="6">${msg}</td>`;
       tbody.appendChild(row);
+    } else {
+      const cell = emptyRow.querySelector('td');
+      if (cell) cell.textContent = msg;
     }
   } else if (emptyRow) {
     emptyRow.remove();
@@ -473,9 +938,13 @@ function downloadExcel(folio) {
   const cells = rowData.getElementsByTagName('td');
   const data = {
     'Folio': rowData.dataset.folio || folio,
-    'Colaborador': cells[1]?.textContent || '',
-    'Tipo de Acta': cells[2]?.textContent || '',
-    'Fecha': cells[3]?.textContent || '',
+    'Colaborador': rowData.dataset.nombre || cells[0]?.textContent || '',
+    'Cargo': rowData.dataset.cargo || '',
+    'Tipo de Acta': cells[1]?.textContent || '',
+    'Tipo de Equipo': rowData.dataset.equipo || '',
+    'Periféricos': rowData.dataset.perifericos || '',
+    'Detalles Técnicos': rowData.dataset.detallesTecnicos || '',
+    'Fecha': rowData.dataset.fecha || cells[2]?.textContent || '',
     'Estado': rowData.dataset.estado || ''
   };
 
@@ -488,7 +957,11 @@ function downloadExcel(folio) {
   ws['!cols'] = [
     { wch: 15 },
     { wch: 25 },
+    { wch: 24 },
     { wch: 20 },
+    { wch: 18 },
+    { wch: 15 },
+    { wch: 45 },
     { wch: 15 },
     { wch: 15 }
   ];
@@ -499,7 +972,67 @@ function downloadExcel(folio) {
   showToast("Descarga Completada", `Documento Excel para el folio ${folio} descargado exitosamente.`);
 }
 
-window.addEventListener('load', filterTable);
+function saveRecordsToLocalStorage() {
+  const tbody = document.getElementById('tableBody');
+  const rows = Array.from(tbody.querySelectorAll('tr:not(.table-empty-row)'));
+  const records = rows.map(row => ({
+    folio: row.dataset.folio,
+    nombre: row.dataset.nombre,
+    cargo: row.dataset.cargo,
+    tipo: row.dataset.tipo,
+    fecha: row.dataset.fecha,
+    estado: row.dataset.estado,
+    equipo: row.dataset.equipo,
+    perifericos: row.dataset.perifericos,
+    detallesTecnicos: row.dataset.detallesTecnicos
+  }));
+  localStorage.setItem('actas_records', JSON.stringify(records));
+  localStorage.setItem('folioCounter', folioCounter);
+}
+
+function loadRecordsFromLocalStorage() {
+  const savedFolio = localStorage.getItem('folioCounter');
+  if (savedFolio) {
+    folioCounter = parseInt(savedFolio, 10);
+  } else {
+    folioCounter = 1;
+  }
+
+  const savedRecords = localStorage.getItem('actas_records');
+  if (savedRecords) {
+    try {
+      const records = JSON.parse(savedRecords);
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = ''; // clear table
+      records.forEach(rec => {
+        const tr = document.createElement('tr');
+        tr.dataset.folio = rec.folio || '';
+        tr.dataset.nombre = rec.nombre || '';
+        tr.dataset.cargo = rec.cargo || '';
+        tr.dataset.tipo = rec.tipo || 'asignacion';
+        tr.dataset.fecha = rec.fecha || '';
+        tr.dataset.estado = rec.estado || 'Pendiente';
+        tr.dataset.equipo = rec.equipo || '';
+        tr.dataset.perifericos = rec.perifericos || '';
+        tr.dataset.detallesTecnicos = rec.detallesTecnicos || '';
+        renderRecordRow(tr);
+        tbody.appendChild(tr);
+      });
+    } catch (e) {
+      console.error("Error loading records from localStorage", e);
+    }
+  }
+}
+
+window.addEventListener('load', () => {
+  loadRecordsFromLocalStorage();
+  filterTable();
+});
+
+// Spin animation para botón de carga
+const _style = document.createElement('style');
+_style.textContent = '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
+document.head.appendChild(_style);
 
 // Sidebar navigation highlighters
 function setNav(el) {
